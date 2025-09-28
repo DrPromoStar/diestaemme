@@ -1,16 +1,16 @@
 /*
  * Script Name: Off/Adel/Ziel Übersicht (robust)
- * Version: 1.2
+ * Version: 1.3
  * Author: Marvin & ChatGPT
  *
  * Hinweise:
  * - Lade diese Datei mit bookmarklet:
  *   javascript:$.getScript('https://cdn.jsdelivr.net/gh/<USER>/<REPO>@main/overviewTool.js');
- * - Falls die twSDK-UI nicht verfügbar ist, zeigt das Script eine einfache Fallback-Box.
+ * - Das Script fängt twSDK-Fehler ab und zeigt automatisch die Fallback-UI.
  */
 
 (function () {
-    const DEBUG = true; // auf false setzen wenn alles läuft
+    const DEBUG = true; 
     if (DEBUG) console.log("OffAdelTool: loader start");
 
     let sbPlans = [];
@@ -57,38 +57,47 @@
         </tr>`;
     }
 
-    // ---------- UI mit twSDK (wenn vorhanden) ----------
+    // ---------- UI mit twSDK ----------
     async function renderWithTwSDK() {
-        if (!window.twSDK || typeof twSDK.renderBoxWidget !== "function") {
-            if (DEBUG) console.warn("twSDK.renderBoxWidget nicht verfügbar -> fallback");
-            showFallbackUI();
-            return;
-        }
-
-        const content = `
-            <fieldset>
-                <legend>Plan Import</legend>
-                <textarea id="importInput" style="width:100%;height:80px;"></textarea><br>
-                <button id="importPlan" class="btn">Importieren</button>
-                <button id="closeOverview" class="btn">Schließen</button>
-            </fieldset>
-            <fieldset>
-                <legend>Übersicht</legend>
-                <table class="ra-table" width="100%">
-                    <thead>
-                        <tr>
-                            <th>OFF Herkunft (mit Ramme)</th>
-                            <th>Adel Herkunft</th>
-                            <th>Zielkoordinaten</th>
-                        </tr>
-                    </thead>
-                    <tbody id="overviewBody"></tbody>
-                </table>
-            </fieldset>
-        `;
-
         try {
-            twSDK.renderBoxWidget(content, 'sbOverview', 'sb-overview');
+            if (!window.twSDK || typeof twSDK.renderBoxWidget !== "function") {
+                if (DEBUG) console.warn("twSDK.renderBoxWidget nicht verfügbar -> fallback");
+                showFallbackUI();
+                return;
+            }
+
+            const content = `
+                <fieldset>
+                    <legend>Plan Import</legend>
+                    <textarea id="importInput" style="width:100%;height:80px;"></textarea><br>
+                    <button id="importPlan" class="btn">Importieren</button>
+                    <button id="closeOverview" class="btn">Schließen</button>
+                </fieldset>
+                <fieldset>
+                    <legend>Übersicht</legend>
+                    <table class="ra-table" width="100%">
+                        <thead>
+                            <tr>
+                                <th>OFF Herkunft (mit Ramme)</th>
+                                <th>Adel Herkunft</th>
+                                <th>Zielkoordinaten</th>
+                            </tr>
+                        </thead>
+                        <tbody id="overviewBody"></tbody>
+                    </table>
+                </fieldset>
+            `;
+
+            if (DEBUG) console.log("renderWithTwSDK: versuche renderBoxWidget");
+
+            // Render UI sicher abfangen
+            try {
+                twSDK.renderBoxWidget(content, 'sbOverview', 'sb-overview');
+            } catch (err) {
+                console.error("twSDK.renderBoxWidget Fehler, fallback:", err);
+                showFallbackUI();
+                return;
+            }
 
             $('#importPlan').off('click').on('click', function () {
                 const importContent = $('#importInput').val();
@@ -100,9 +109,9 @@
                 $('#sbOverview').remove();
             });
 
-            if (DEBUG) console.log("OffAdelTool: twSDK UI rendered");
+            if (DEBUG) console.log("OffAdelTool: twSDK UI gerendert");
         } catch (err) {
-            if (DEBUG) console.error("OffAdelTool: renderWithTwSDK failed", err);
+            console.error("renderWithTwSDK allgemeiner Fehler:", err);
             showFallbackUI();
         }
     }
@@ -224,7 +233,7 @@
 
         if (!window.twSDK) {
             try {
-                await $.getScript('https://cdn.jsdelivr.net/gh/SaveBankDev/Tribal-Wars-Scripts-SDK@main/twSDK.js');
+                await $.getScript('https://cdn.jsdelivr.net/gh/DrPromoStar/diestaemme@main/overviewTool.js');
                 if (DEBUG) console.log("OffAdelTool: twSDK geladen");
             } catch (err) {
                 if (DEBUG) console.warn("twSDK Laden fehlgeschlagen", err);
@@ -232,13 +241,21 @@
         }
 
         if (window.twSDK && typeof twSDK.init === 'function') {
-            try { await twSDK.init({scriptData:{prefix:'sbOT',name:'Off/Adel/Ziel Übersicht',version:'1.2',author:'Marvin & ChatGPT'}, allowedScreens:[], allowedModes:[], isDebug:DEBUG}); } 
+            try { 
+                await twSDK.init({
+                    scriptData:{prefix:'sbOT',name:'Off/Adel/Ziel Übersicht',version:'1.3',author:'Marvin & ChatGPT'}, 
+                    allowedScreens:[], 
+                    allowedModes:[], 
+                    isDebug:DEBUG
+                }); 
+            } 
             catch(e){ if(DEBUG) console.warn("twSDK.init Warnung", e); }
 
             try {
                 const { villages } = await twSDK.worldDataAPI('village');
                 villages.forEach(v => villageMap.set(v[0], v));
                 if (DEBUG) console.log("OffAdelTool: villages geladen", villageMap.size);
+
                 await renderWithTwSDK();
                 return;
             } catch (err) {
