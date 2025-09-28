@@ -101,12 +101,6 @@
         return planObjects;
     }
 
-    // --- START ---
-    $.getScript(`https://cdn.jsdelivr.net/gh/SaveBankDev/Tribal-Wars-Scripts-SDK@main/twSDK.js`, async function () {
-        const villages = await twSDK.worldDataAPI('village');
-        villages.forEach(village => {
-            villageMap.set(village[0], village);
-        });
 
         renderUI();
         addEventHandlers();
